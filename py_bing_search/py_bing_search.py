@@ -1,14 +1,15 @@
 import urllib2
 import requests
-import pdb
 import time
+
 
 class PyBingException(Exception):
     pass
 
+
 class PyBingSearch(object):
 
-    QUERY_URL = 'https://api.datamarket.azure.com/Bing/Search/Web' \
+    QUERY_URL = 'https://api.datamarket.azure.com/Bing/SearchWeb/Web' \
                  + '?Query={}&$top={}&$skip={}&$format={}'
 
     def __init__(self, api_key, safe=False):
@@ -54,6 +55,7 @@ class PyBingSearch(object):
                 time.sleep(3)
             next_link = ''
         return [Result(single_result_json) for single_result_json in json_results['d']['results']], next_link
+
 
 class Result(object):
     '''
