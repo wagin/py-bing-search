@@ -1,6 +1,8 @@
 import urllib2
 import requests
 import time
+import datetime
+import dateutil.parser
 
 
 class PyBingException(Exception):
@@ -57,6 +59,76 @@ class PyBingSearch(object):
         return [Result(single_result_json) for single_result_json in json_results['d']['results']], next_link
 
 
+class PyBingNewsSearch(PyBingSearch):
+
+    QUERY_URL = 'https://api.datamarket.azure.com/Bing/Search/v1/News?Query={}'
+
+    def __init__(self, api_key, safe=False, latest_window=7):
+        self.api_key = api_key
+        self.safe = safe
+        self.latest_window = latest_window
+
+    def search(self, query, format='json', **kwargs):
+        ''' Returns the result list'''
+        return self._search(query, format=format)
+
+    def search_all(self, query, format='json', limit=100, **kwargs):
+        ''' Returns a single list containing up to 'limit' Result objects'''
+        results = self._search(query, format, **kwargs)
+        if not results:
+            return results
+        current_url = results[-1].url
+        prev_url = None
+        while len(results) <= limit:
+            max = limit - len(results)
+            kwargs['$skip'] = len(results)
+            more_results = self._search(query, format=format, **kwargs)
+            prev_url = current_url
+            current_url = more_results[-1].url
+            if prev_url == current_url:
+                break
+            results += more_results
+        return results
+
+    def _search(self, query, format='json', **kwargs):
+        kwargs['$format'] = format
+        url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)))
+        r = requests.get(url, auth=("", self.api_key), params=kwargs)
+
+        try:
+            json_results = r.json()
+        except ValueError as vE:
+            if not self.safe:
+                raise PyBingException("Request returned with code %s, error msg: %s" % (r.status_code, r.text))
+            else:
+                print "[ERROR] Request returned with code %s, error msg: %s. \nContinuing in 5 seconds." % (r.status_code, r.text)
+                time.sleep(5)
+
+        return [Result(single_result_json) for single_result_json in json_results['d']['results']]
+
+    def search_latest(self, query, format='json', **kwargs):
+        before = kwargs.pop('before', None)
+        if not before:
+            before_date = datetime.date.today() - datetime.timedelta(days=self.latest_window)
+        else:
+            before_date = dateutil.parser.parse(before).date()
+
+        kwargs['NewsSortBy'] = "'Date'"
+        results = []
+        crawling = True
+        while crawling:
+            kwargs['$skip'] = len(results)
+            more_results = self._search(query, format=format, **kwargs)
+            for result in more_results:
+                current_date = dateutil.parser.parse(result.date).date()
+                if current_date < before_date:
+                    crawling = False
+                    break
+                results.append(result)
+
+        return results
+
+
 class Result(object):
     '''
     The class represents a SINGLE search result.
@@ -86,5 +158,7 @@ class Result(object):
         self.title = result['Title']
         self.description = result['Description']
         self.id = result['ID']
+        if 'Date' in result:
+            self.date = result['Date']
 
         self.meta = self._Meta(result['__metadata'])
