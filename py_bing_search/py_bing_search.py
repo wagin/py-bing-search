@@ -91,7 +91,7 @@ class PyBingNewsSearch(PyBingSearch):
         return results
 
     def _search(self, query, format='json', **kwargs):
-        kwargs['$format'] = format
+        kwargs['$format'] = "'json'"
         url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)))
         r = requests.get(url, auth=("", self.api_key), params=kwargs)
 
@@ -104,7 +104,11 @@ class PyBingNewsSearch(PyBingSearch):
                 print "[ERROR] Request returned with code %s, error msg: %s. \nContinuing in 5 seconds." % (r.status_code, r.text)
                 time.sleep(5)
 
-        return [Result(single_result_json) for single_result_json in json_results['d']['results']]
+        if format == 'json':
+            results = json_results['d']['results']
+        else:
+            results = [Result(single_result_json) for single_result_json in json_results['d']['results']]
+        return results
 
     def search_latest(self, query, format='json', **kwargs):
         before = kwargs.pop('before', None)
@@ -115,16 +119,18 @@ class PyBingNewsSearch(PyBingSearch):
 
         kwargs['NewsSortBy'] = "'Date'"
         results = []
-        crawling = True
-        while crawling:
+        current_url = None
+        while True:
             kwargs['$skip'] = len(results)
             more_results = self._search(query, format=format, **kwargs)
             for result in more_results:
                 current_date = dateutil.parser.parse(result.date).date()
                 if current_date < before_date:
-                    crawling = False
-                    break
-                results.append(result)
+                    results.append(result)
+            prev_url = current_url
+            current_url = more_results[-1].url
+            if prev_url == current_url:
+                break
 
         return results
 
