@@ -3,7 +3,7 @@ import requests
 import time
 import datetime
 import dateutil.parser
-
+from requests import Request
 
 class PyBingException(Exception):
     pass
@@ -133,6 +133,12 @@ class PyBingNewsSearch(PyBingSearch):
                 break
 
         return results
+
+    def get_query_url(self, query, **kwargs):
+        url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)))
+        r = Request('GET', url, auth=("", self.api_key), params=kwargs)
+        prep = r.prepare()
+        return prep.url
 
 
 class Result(object):
