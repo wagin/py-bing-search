@@ -61,7 +61,7 @@ class PyBingSearch(object):
 
 class PyBingNewsSearch(PyBingSearch):
 
-    QUERY_URL = 'https://api.datamarket.azure.com/Bing/Search/v1/News?Query={}'
+    QUERY_URL = 'https://api.datamarket.azure.com/Bing/Search/v1/News?Query={}&$format={}'
 
     def __init__(self, api_key, safe=False, latest_window=7):
         self.api_key = api_key
@@ -91,10 +91,10 @@ class PyBingNewsSearch(PyBingSearch):
         return results
 
     def _search(self, query, format='json', **kwargs):
-        kwargs['$format'] = "'json'"
-        url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)))
+        url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)), 'json')
         r = requests.get(url, auth=("", self.api_key), params=kwargs)
 
+        print r.url
         try:
             json_results = r.json()
         except ValueError as vE:
@@ -124,18 +124,25 @@ class PyBingNewsSearch(PyBingSearch):
             kwargs['$skip'] = len(results)
             more_results = self._search(query, format=format, **kwargs)
             for result in more_results:
-                current_date = dateutil.parser.parse(result.date).date()
+                try:
+                    date = result.date
+                except:
+                    date = result['Date']
+                current_date = dateutil.parser.parse(date).date()
                 if current_date < before_date:
                     results.append(result)
             prev_url = current_url
-            current_url = more_results[-1].url
+            try:
+                current_url = more_results[-1].url
+            except:
+                current_url = more_results[-1]['Url']
             if prev_url == current_url:
                 break
 
         return results
 
     def get_query_url(self, query, **kwargs):
-        url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)))
+        url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)), '.json')
         r = Request('GET', url, auth=("", self.api_key), params=kwargs)
         prep = r.prepare()
         return prep.url
