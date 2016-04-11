@@ -12,8 +12,8 @@ Installation
 
 *Requires the requests library.
 
-Usage
-=====
+Usage -- Web
+============
 
 Remember to set the `API_KEY` as your own.
 
@@ -51,4 +51,20 @@ self.id:            bing id for the page
 self.meta.uri:      the search uri for bing
 self.meta.type:     for the most part WebResult
 ```
-    
+
+Usage -- News API
+=================
+
+Very similar to Web API except some changes in imports and parameters
+
+    >>> from py_bing_search import PyBingNewsSearch
+    >>> bing_news = PyBingNewsSearch('Your-Api-Key-Here')
+    >>> bing_news.search("United States Election")
+    >>> bing_news.search_all("United States Election")
+    >>> bing_news.search_latest("United States Election")
+
+Arguments:
+
+format -- default=json:     Describes Output format if specified as json returns raw json
+                            else return Result object specifed above
+
